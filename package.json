@@ -1,0 +1,20 @@
+{
+  "name": "cryptographic-files",
+  "version": "1.0.0",
+  "description": "Project for the information security disipline",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "AES",
+    "encryption",
+    "SSL"
+  ],
+  "author": "Gabriel Feitosa, Gabriel Oliveira, Thiago Oliveira",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.1",
+    "express-fileupload": "^1.3.1"
+  }
+}
