@@ -14,18 +14,14 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css" />
   </head>
   <body>
-    <!-- HTML code to render the upload button and the share link -->
     <div id="main div" class="w3-margin w3-padding-large">
       <h2>Select the file you wanna upload :</h2>
 
-      <!-- Upload button for file -->
       <input class="w3-input" id="file" type="file" multiple />
 
-      <!-- Submit button to start the upload process -->
       <button type="button" class="w3-button w3-teal" id="uploadBtn">
         Upload
       </button>
-      <!-- div for the share link -->
       <div id="link"></div>
     </div>
     <!-- JavaScript code to get data, cipher and request the server -->
@@ -45,7 +41,7 @@
         var fileJSON = JSON.stringify({ data: file, name: name });
         console.log(fileJSON);
 
-        //Genererate a secure random key
+        //Generate a secure random key
         var salt = CryptoJS.lib.WordArray.random(128 / 8); //Get a random salt
         var key = CryptoJS.PBKDF2(name, salt, { keySize: 256 / 32 });
 
