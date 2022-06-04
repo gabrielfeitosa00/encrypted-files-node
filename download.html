@@ -1,9 +1,3 @@
-<!--
- * Download page to decrypt file and save on user computer
- *
- * @author Denis CLAVIER <clavierd at gmail dot com>
--->
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -16,13 +10,15 @@
   </head>
 
   <body>
-    <div id="main div" class="w3-margin w3-padding-large">
+    <form id="form" class="w3-margin w3-padding-large">
       <h2>Click on the button below to save the file on your computer !</h2>
 
-      <div id="link" class="w3-button w3-teal">
-        <div id="saveLink"></div>
-      </div>
-    </div>
+      <input class="w3-input" id="password" type="text" required />
+      <button type="submit" class="w3-button w3-teal" id="saveBtn">
+        Decrypt file
+      </button>
+      <div id="saveLink"></div>
+    </form>
 
     <!-- JavaScript code to get data, cipher and request the server -->
     <script>
@@ -58,96 +54,79 @@
        */
       function decryptFile(file, keyB64) {
         //Convert the key from base 64 to Bits
-        // var key =  CryptoJS.enc.Base64.parse(keyB64);
         try {
-          //Decrypt the file with the provided key
-          var decrypt = CryptoJS.AES.decrypt(file, keyB64).toString(
+          const key = CryptoJS.enc.Base64.parse(keyB64);
+          // Decrypt the file with the provided key
+          const decrypt = CryptoJS.AES.decrypt(file, keyB64).toString(
             CryptoJS.enc.Utf8
           );
-          console.log(decrypt);
+
+          //Parse the decrypted string to get name and file separately
+          const obj = JSON.parse(decrypt);
+          return [obj.data, obj.name];
         } catch (error) {
-          alert("Error: " + error.toString());
+          throw "Seems your file was corrupted :(";
         }
-
-        console.log(decrypt);
-
-        //Parse the decrypted string to get name and file separately
-        var obj = JSON.parse(decrypt);
-        console.log(obj);
-        return [obj.data, obj.name];
       }
 
       /**
        * Get the file and the key from url, decrypt file and generate a link to save the decrypted file
        */
-      function downloadProcess() {
-        //Get the file id from the url
-        var filepathRaw = getParam("file");
+      async function downloadProcess(e) {
+        e.preventDefault();
+        try {
+          //Get the file id from the url
+          const password = document.getElementById("password").value;
+          const hash = CryptoJS.SHA256(password).toString(CryptoJS.enc.Base64);
+          const hashFromURL = getParam("id");
+          const fileID = getParam("file");
 
-        //Exception raises if there is no file id in url
-        if (filepathRaw == null) {
-          var error = "Error : File parameter is missing";
-          $("#saveLink").append(error);
-          throw "Error : File parameter is missing";
+          if (!hashFromURL) {
+            throw "Error: Missing hash from URL";
+            exit(0);
+          }
+          if (hash !== hashFromURL) {
+            throw "Error: Wrong password";
+            exit(0);
+          }
+
+          //Exception raises if there is no file id in url
+          if (fileID == null) {
+            throw "Error: File parameter is missing";
+            exit(0);
+          }
+
+          //Escape and validate the file id parameter in order to prevent attack (code injection, path traversal, remote/local file inclusion)
+          var tmpFilepath = fileID.replace("/", "");
+          tmpFilepath = tmpFilepath.replace(".", "");
+
+          //The file id should be an integer, if it is not a number, raise an exception
+          const fileRequested = parseInt(tmpFilepath);
+          if (isNaN(fileRequested)) {
+            throw "Error : File parameter is missing or not accepted";
+            exit(0);
+          }
+
+          const response = await fetch("/" + fileRequested.toString());
+          if (response.ok) {
+            const data = await response.text();
+            const decrypt = decryptFile(data, hash);
+            const downloadLink =
+              '<a download="' +
+              decrypt[1] +
+              '" href="' +
+              decrypt[0] +
+              '"> Save </a>';
+            $("#saveLink").append(downloadLink);
+          }
+        } catch (e) {
+          if (typeof e === "string") alert(e);
         }
-
-        //Escape and validate the file id parameter in order to prevent attack (code injection, path traversal, remote/local file inclusion)
-        var tmpFilepath = filepathRaw.replace("/", "");
-        tmpFilepath = tmpFilepath.replace(".", "");
-
-        //The file id should be an integer, if it is not a number, raise an exception
-        var fileRequested = parseInt(tmpFilepath);
-        if (isNaN(fileRequested)) {
-          var error = "Error : File parameter is missing or not accepted";
-          $("#saveLink").append(error);
-          throw "Error : File parameter is missing or not accepted";
-        }
-
-        //Get the key in the url's token section (#xxxxxxxxx) or throw an error if url does not containt hash
-        if (window.location.hash) {
-          var keyFrag = window.location.hash.substring(1);
-        } else {
-          var error = "Error : Encrypt Key is missing";
-          $("#saveLink").append(error);
-          throw "Error : Encrypt key is missing";
-        }
-
-        //Get the file from the server with a Get request
-        var getFile = new XMLHttpRequest();
-        getFile.open("GET", "/" + fileRequested.toString());
-
-        //When encrypted file is collected, decrypt the file and create the link to allow user to save it on his computer
-        getFile.addEventListener(
-          "load",
-          function () {
-            var decrypt = decryptFile(getFile.response, keyFrag);
-            console.log(decrypt);
-            if (decrypt) {
-              var downloadLink =
-                '<a download="' +
-                decrypt[1] +
-                '" href="' +
-                decrypt[0] +
-                '"> Save </a>';
-              $("#saveLink").append(downloadLink);
-            } else {
-              var downloadLink = "<p>File was tampared with </p>";
-            }
-          },
-          false
-        );
-
-        //Send the GET request
-        getFile.send();
       }
-
-      //Initialisation function
       function init() {
-        //launch the download process
-        downloadProcess();
+        // listen to download
+        $("#form").submit(downloadProcess);
       }
-
-      //Start initialisation process when the user load the page
       $(init);
     </script>
   </body>

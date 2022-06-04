@@ -1,9 +1,3 @@
-<!--
- * Upload page to send file, encrypt it, save on server and generate download link
- *
- * @author Denis CLAVIER <clavierd at gmail dot com>
--->
-
 <!DOCTYPE html>
 <html>
   <head>
@@ -14,16 +8,16 @@
     <link rel="stylesheet" href="https://www.w3schools.com/w3css/4/w3.css" />
   </head>
   <body>
-    <div id="main div" class="w3-margin w3-padding-large">
+    <form id="form" class="w3-margin w3-padding-large">
       <h2>Select the file you wanna upload :</h2>
 
-      <input class="w3-input" id="file" type="file" multiple />
-
-      <button type="button" class="w3-button w3-teal" id="uploadBtn">
+      <input class="w3-input" id="file" type="file" multiple required />
+      <input class="w3-input" id="password" type="text" required />
+      <button type="submit" class="w3-button w3-teal" id="uploadBtn">
         Upload
       </button>
       <div id="link"></div>
-    </div>
+    </form>
     <!-- JavaScript code to get data, cipher and request the server -->
     <script>
       /**
@@ -35,116 +29,111 @@
        * @return
        * A string array with 2 elements : the encrypted file and the associated key in base 64
        */
-      function encryptFile(file, name) {
+      function encryptFile(file, password, name) {
+        // Generate hash
+        const hash = CryptoJS.SHA256(password)
         //Create a JSON object to bind the file and its name
+        const fileJSON = JSON.stringify({ data: file, hash, name });
 
-        var fileJSON = JSON.stringify({ data: file, name: name });
-        console.log(fileJSON);
-
-        //Generate a secure random key
-        var salt = CryptoJS.lib.WordArray.random(128 / 8); //Get a random salt
-        var key = CryptoJS.PBKDF2(name, salt, { keySize: 256 / 32 });
-
-        var keyB64 = key.toString(CryptoJS.enc.Base64); //Convert the key in base 64 to handle easily (url).
-        console.log(`this is the key ${keyB64}`);
+        const keyB64 = hash.toString(CryptoJS.enc.Base64); //Convert the key in base 64 to handle easily (url).
         //Encrypt the file with the generated key
         try {
           var crypt = CryptoJS.AES.encrypt(fileJSON, keyB64);
-          console.log(crypt);
+          return [crypt, keyB64];
         } catch (error) {
           alert(error);
         }
-
-        return [crypt, keyB64];
       }
 
       /**
        * Get the uploaded file, encrypt it, save it in the server and generate a share link
        */
-      function uploadProcess() {
-        //Alert thrown if no file has been selected
-        if (document.getElementById("file").files.length == 0) {
+      function uploadProcess(e) {
+        e.preventDefault()
+        const password = document.getElementById("password").value;
+        const files = document.getElementById("file").files;
+
+        if (!password) {
+          alert("You must choose a password");
+          exit(1);
+        }
+
+        if (files.length == 0) {
           alert("No file selected");
           exit(1);
         }
 
-        //If captcha has been checked, the upload process go on
-        else {
-          //Get the uploaded file
-          var fileInput = document.querySelector("#file");
+        //Read the file in order to convert in a buffer (string)
+        const reader = new FileReader();
 
-          //Read the file in order to convert in a buffer (string)
-          var reader = new FileReader();
+        //Read data in base 64 format to handle easily
+        reader.readAsDataURL(files[0]);
 
-          //Read data in base 64 format to handle easily
-          reader.readAsDataURL(fileInput.files[0]);
+        //When all data are loaded, file is encrypted and share link is created
+        reader.addEventListener("load", function () {
+          //Encrypt the file with its name
+          if (files[0].size > 2097152) {
+            alert("File is larger than 2MB!");
+            exit(1);
+          }
 
-          //When all data are loaded, file is encrypted and share link is created
-          reader.addEventListener("load", function () {
-            //Encrypt the file with its name
-            if (fileInput.files[0].size > 2097152) {
-              alert("File is larger than 2MB!");
-              exit(1);
-            }
+          const crypt = encryptFile(reader.result, password, files[0].name);
 
-            var crypt = encryptFile(reader.result, fileInput.files[0].name);
+          //Create a new POST request to send the encrypted file to the server
+          const xhr = new XMLHttpRequest();
+          xhr.open("POST", "upload.html");
 
-            //Create a new POST request to send the encrypted file to the server
-            var xhr = new XMLHttpRequest();
-            xhr.open("POST", "upload.html");
+          //When file is uploaded on the server, create the share link
+          xhr.addEventListener(
+            "load",
+            function () {
+              if (
+                xhr.readyState == 4 &&
+                (xhr.status == 200 || xhr.status == 0)
+              ) {
+                //Get the file id generated by the server
+                const fileID = xhr.responseText;
 
-            //When file is uploaded on the server, create the share link
-            xhr.addEventListener(
-              "load",
-              function () {
-                if (
-                  xhr.readyState == 4 &&
-                  (xhr.status == 200 || xhr.status == 0)
-                ) {
-                  //Get the file id generated by the server
-                  const fileID = xhr.responseText;
+                //Create the share link with the file id and the key
+                var link =
+                  window.location.href +
+                  "download.html?file=" +
+                  fileID +
+                  "&id=" +
+                  crypt[1];
 
-                  //Create the share link with the file id and the key
-                  var link =
-                    window.location.href +
-                    "download.html?file=" +
-                    fileID +
-                    "#" +
-                    crypt[1];
+                //Print the share link
+                var message =
+                  "Share this link with your friends : <a href=" +
+                  link +
+                  ">" +
+                  link +
+                  "</a>";
 
-                  //Print the share link
-                  var message =
-                    "Share this link with your friends : <a href=" +
-                    link +
-                    ">" +
-                    link +
-                    "</a>";
+                //Throw an alert to inform the user
+                alert("Upload Successful ! Use the link to share !");
+                $("#link").html(message);
+              }
+            },
+            false
+          );
 
-                  //Throw an alert to inform the user
-                  alert("Upload Successful ! Use the link to share !");
-                  $("#link").html(message);
-                }
-              },
-              false
-            );
+          //Create a blob with the encrypted data
+          const form = new FormData();
+          const blob = new Blob([crypt[0]], { type: "text/xml" });
 
-            //Create a blob with the encrypted data
-            var form = new FormData();
-            var blob = new Blob([crypt[0]], { type: "text/xml" });
+          //Provide parameter to the POST request : the encrypted file and the captcha validation
+          form.append("cryptFile", blob);
 
-            //Provide parameter to the POST request : the encrypted file and the captcha validation
-            form.append("cryptFile", blob);
-
-            //Send the post request
-            xhr.send(form);
-          });
-        }
+          //Send the post request
+          xhr.send(form);
+        });
       }
 
       //Initialisation function
       function init() {
         //launch the upload process when upload button is pressed
-        $("#uploadBtn").click(uploadProcess);
+        $("#form").submit(uploadProcess);
       }
 
       //Start initialisation process when the user load the page
