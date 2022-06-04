@@ -69,42 +69,41 @@
         }
       }
 
+      function Error(msg) {
+        return `Error: ${msg}`;
+        exit(0);
+      }
+
       /**
        * Get the file and the key from url, decrypt file and generate a link to save the decrypted file
        */
       async function downloadProcess(e) {
         e.preventDefault();
         try {
-          //Get the file id from the url
           const password = document.getElementById("password").value;
           const hash = CryptoJS.SHA256(password).toString(CryptoJS.enc.Base64);
           const hashFromURL = getParam("id");
           const fileID = getParam("file");
 
-          if (!hashFromURL) {
-            throw "Error: Missing hash from URL";
-            exit(0);
-          }
-          if (hash !== hashFromURL) {
-            throw "Error: Wrong password";
-            exit(0);
+          if (fileID == null) {
+            throw Error("File parameter is missing!");
           }
 
-          //Exception raises if there is no file id in url
-          if (fileID == null) {
-            throw "Error: File parameter is missing";
-            exit(0);
+          if (!hashFromURL) {
+            throw Error("Missing hash from URL!");
+          }
+
+          if (hash !== hashFromURL) {
+            throw Error("Wrong password for that file!");
           }
 
           //Escape and validate the file id parameter in order to prevent attack (code injection, path traversal, remote/local file inclusion)
-          var tmpFilepath = fileID.replace("/", "");
-          tmpFilepath = tmpFilepath.replace(".", "");
+          const tmpFilepath = fileID.replaceAll("\D+", "");
 
           //The file id should be an integer, if it is not a number, raise an exception
           const fileRequested = parseInt(tmpFilepath);
           if (isNaN(fileRequested)) {
-            throw "Error : File parameter is missing or not accepted";
-            exit(0);
+            throw Error("File parameter is missing or not accepted!");
           }
 
           const response = await fetch("/" + fileRequested.toString());
@@ -118,15 +117,28 @@
               decrypt[0] +
               '"> Save </a>';
             $("#saveLink").append(downloadLink);
+          } else {
+            const isJson = response.headers
+              .get("content-type")
+              ?.includes("application/json");
+            const data = isJson ? await response.json() : await response.text();
+
+            throw Error(
+              data?.message || `Something went wrong: ${response.status}`
+            );
           }
         } catch (e) {
-          if (typeof e === "string") alert(e);
+          if (typeof e === "string") {
+            alert(e);
+          }
         }
       }
+
       function init() {
         // listen to download
         $("#form").submit(downloadProcess);
       }
+
       $(init);
     </script>
   </body>
