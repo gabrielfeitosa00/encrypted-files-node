@@ -41,7 +41,7 @@
         // Generate hash
         const hash = CryptoJS.SHA256(password);
         //Create a JSON object to bind the file and its name
-        const fileJSON = JSON.stringify({ data: file, hash, name });
+        const fileJSON = JSON.stringify({ data: file, name });
 
         const keyB64 = hash.toString(CryptoJS.enc.Base64); //Convert the key in base 64 to handle easily (url).
         //Encrypt the file with the generated key
@@ -104,9 +104,7 @@
             const link =
               window.location.href +
               "download.html?file=" +
-              fileID +
-              "&id=" +
-              crypt[1];
+              fileID 
 
             //Print the share link
             const message =

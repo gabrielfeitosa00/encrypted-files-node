@@ -90,19 +90,11 @@
         try {
           const password = document.getElementById("password").value;
           const hash = CryptoJS.SHA256(password).toString(CryptoJS.enc.Base64);
-          const hashFromURL = getParam("id");
+         
           const fileID = getParam("file");
 
           if (fileID == null) {
             throw Error("File parameter is missing!");
-          }
-
-          if (!hashFromURL) {
-            throw Error("Missing hash from URL!");
-          }
-
-          if (hash !== hashFromURL) {
-            throw Error("Wrong password for that file!");
           }
 
           //Escape and validate the file id parameter in order to prevent attack (code injection, path traversal, remote/local file inclusion)
