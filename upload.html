@@ -18,7 +18,8 @@
       <input class="w3-input" id="file" type="file" multiple required />
 
       <div class="input-group">
-        <input class="w3-input form-control" id="password" type="text" required />
+        <input class="w3-input form-control" id="password senha" type="password" required />
+        <img id="olho">
         <div class="input-group-append">
           <button type="submit" class="btn btn-success" id="uploadBtn">Upload</button>
         </div>
@@ -28,6 +29,21 @@
     </form>
     <!-- JavaScript code to get data, cipher and request the server -->
     <script>
+      /* Enconder senha da tela */
+      var senha = $('#senha');
+      var olho= $("#olho");
+
+      olho.mousedown(function() {
+        senha.attr("type", "text");
+      });
+
+      olho.mouseup(function() {
+      senha.attr("type", "password");
+      });
+      // para evitar o problema de arrastar a imagem e a senha continuar exposta
+      $( "#olho" ).mouseout(function() { 
+      $("#senha").attr("type", "password");
+      });
       /**
        * @param string @file
        * The uploaded file (in string format) to encrypt
